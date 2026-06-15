@@ -118,3 +118,42 @@ describe("BackendAPI._makeClientRequest 204 handling", () => {
     expect(result).toEqual({ ok: true });
   });
 });
+
+describe("BackendAPI WebSocket message handling", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("ignores malformed WebSocket frames without throwing", () => {
+    const api = new BackendAPI("http://test", "ws://test");
+    const handler = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    api.onWebSocketMessage("heartbeat", handler);
+
+    expect(() =>
+      (api as any)._handleWSMessage({
+        data: "not-json",
+      } as MessageEvent),
+    ).not.toThrow();
+    expect(handler).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[BackendAPI] Ignoring malformed WebSocket message",
+      expect.any(SyntaxError),
+    );
+  });
+
+  it("still dispatches valid WebSocket frames", () => {
+    const api = new BackendAPI("http://test", "ws://test");
+    const handler = vi.fn();
+    api.onWebSocketMessage("notification", handler);
+
+    (api as any)._handleWSMessage({
+      data: JSON.stringify({
+        method: "notification",
+        data: { message: "hello" },
+      }),
+    } as MessageEvent);
+
+    expect(handler).toHaveBeenCalledWith({ message: "hello" });
+  });
+});

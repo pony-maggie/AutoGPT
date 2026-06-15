@@ -1160,7 +1160,13 @@ export default class BackendAPI {
   }
 
   private _handleWSMessage(event: MessageEvent): void {
-    const message: WebsocketMessage = JSON.parse(event.data);
+    let message: WebsocketMessage;
+    try {
+      message = JSON.parse(event.data);
+    } catch (error) {
+      console.warn("[BackendAPI] Ignoring malformed WebSocket message", error);
+      return;
+    }
 
     // Handle heartbeat response
     if (message.method === "heartbeat" && message.data === "pong") {
